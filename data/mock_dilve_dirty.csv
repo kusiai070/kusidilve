@@ -1,0 +1,11 @@
+isbn13,titulo,autor,descripcion,precio,stock
+9788496479685,TÃ­tulo con UTF-8 roto,Autor Ejemplo,"<p>DescripciÃ³n con HTML</p> &nbsp; &nbsp; Texto adicional con caracteres especiales",18.95,5
+9788496479686,Otro TÃ­tulo,Otro Autor,"Descripción normal sin HTML",22.50,0
+9788496479687,TÃ­tulo Especial,Autor Especial,"<b>Negrita</b> y <i>cursiva</i> con ñ y acentos",15.00,12
+9788496479688,Libro sin stock,Desconocido,"Sin descripción disponible",0.00,0
+9788496479689,Libro con acentos,José María,"Descripción con ñ y acentos: áéíóú",25.99,3
+9788496479690,La Casa de los Espíritus,Isabel Allende,"<p>Una novela épica que abarca cuatro generaciones</p>",19.95,8
+9788496479691,Cien años de soledad,Gabriel García Márquez,"Masterpiece de la literatura latinoamericana",21.50,2
+9788496479692,El Quijote,Miguel de Cervantes,"<span>La obra maestra de la literatura española</span>",12.99,15
+9788496479693,Rayuela,Julio Cortázar,"Novela experimental con estructura única",18.00,1
+9788496479694,La Sombra del Viento,Carlos Ruiz Zafón,"Misterio y romance en la Barcelona post-guerra",20.00,6

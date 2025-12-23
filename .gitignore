@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Secrets
+.env
+*.env
+config.json
+credentials.json
+dilve_credentials.json
+woocommerce_config.json
+
+# Data
+*.db
+*.sqlite
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

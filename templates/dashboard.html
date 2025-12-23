@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KusiDilve - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f8f9fa;
+        }
+
+        .sidebar {
+            background: #1a1a1a;
+            color: white;
+            min-height: 100vh;
+            width: 250px;
+            position: fixed;
+            left: 0;
+            top: 0;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .main-content {
+            margin-left: 250px;
+            padding: 30px;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 30px;
+            color: #fff;
+        }
+
+        .nav-item {
+            padding: 12px 15px;
+            margin: 8px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: #ccc;
+        }
+
+        .nav-item:hover {
+            background: #333;
+            color: #fff;
+        }
+
+        .nav-item.active {
+            background: #0066cc;
+            color: #fff;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .metric-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #1a1a1a;
+            margin: 10px 0;
+        }
+
+        .metric-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .metric-change {
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        .metric-change.positive {
+            color: #10b981;
+        }
+
+        .metric-change.negative {
+            color: #ef4444;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: #0066cc;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0052a3;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #f3f4f6;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #1a1a1a;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        tr:hover {
+            background: #f9fafb;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #0066cc;
+            transition: width 0.3s;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: bold;
+            color: #1a1a1a;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #0066cc;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 1024px) {
+            .grid-3 {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                min-height: auto;
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 15px;
+            }
+
+            .grid-2, .grid-3 {
+                grid-template-columns: 1fr;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .header-actions {
+                width: 100%;
+                margin-top: 15px;
+            }
+
+            .header-actions button {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div style="display: flex;">
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+            <div class="logo">🚀 KusiDilve</div>
+            <nav>
+                <div class="nav-item active" onclick="showSection('dashboard')">📊 Dashboard</div>
+                <div class="nav-item" onclick="showSection('sync')">🔄 Sincronizar</div>
+                <div class="nav-item" onclick="showSection('export')">📥 Exportar</div>
+                <div class="nav-item" onclick="showSection('pricing')">💰 Planes</div>
+                <div class="nav-item" onclick="showSection('settings')">⚙️ Configuración</div>
+            </nav>
+            <hr style="margin: 30px 0; border-color: #333;">
+            <div style="font-size: 12px; color: #999;">
+                <p>v1.0.0</p>
+                <p style="margin-top: 10px;">© 2025 KusiDilve</p>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <div class="main-content" style="flex: 1;">
+            <!-- DASHBOARD SECTION -->
+            <div id="dashboard-section" class="section">
+                <div class="header">
+                    <div>
+                        <h1>Dashboard</h1>
+                        <p style="color: #666; margin-top: 5px;">Métricas de tu catálogo</p>
+                    </div>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" onclick="refreshDashboard()">🔄 Actualizar</button>
+                        <button class="btn btn-success" onclick="showSection('sync')">⚡ Sincronizar Ahora</button>
+                    </div>
+                </div>
+
+                <div id="alerts-container"></div>
+
+                <!-- MÉTRICAS PRINCIPALES -->
+                <div class="grid-3">
+                    <div class="metric-card">
+                        <div class="metric-label">📚 Total de Libros</div>
+                        <div class="metric-value" id="total-books">0</div>
+                        <div class="metric-change positive">↑ Actualizados hoy</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-label">✅ Libros Activos</div>
+                        <div class="metric-value" id="active-books">0</div>
+                        <div class="metric-change" id="active-change">Con stock disponible</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-label">📊 Score SEO</div>
+                        <div class="metric-value" id="seo-score">0</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="seo-progress" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ESTADO DE LIMPIEZA -->
+                <div class="grid-2">
+                    <div class="metric-card">
+                        <div class="metric-label">🧹 Libros Limpios</div>
+                        <div class="metric-value" id="clean-count">0</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="clean-progress" style="width: 0%; background: #10b981;"></div>
+                        </div>
+                        <div style="font-size: 12px; color: #666; margin-top: 10px;" id="clean-percentage">0% limpio</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-label">⚠️ Libros Sucios</div>
+                        <div class="metric-value" id="dirty-count">0</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="dirty-progress" style="width: 0%; background: #ef4444;"></div>
+                        </div>
+                        <div style="font-size: 12px; color: #666; margin-top: 10px;" id="dirty-percentage">0% sucio</div>
+                    </div>
+                </div>
+
+                <!-- GRÁFICOS -->
+                <div class="grid-2">
+                    <div class="chart-container">
+                        <h3 style="margin-bottom: 15px; font-weight: 600;">Stock Status</h3>
+                        <canvas id="stockChart"></canvas>
+                    </div>
+
+                    <div class="chart-container">
+                        <h3 style="margin-bottom: 15px; font-weight: 600;">Limpieza vs Sucio</h3>
+                        <canvas id="cleanChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- ÚLTIMOS LIBROS SUCIOS -->
+                <div class="metric-card" style="margin-top: 30px;">
+                    <h3 style="margin-bottom: 15px; font-weight: 600;">🔴 Top 10 Libros Sucios</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ISBN</th>
+                                    <th>Título</th>
+                                    <th>Autor</th>
+                                    <th>Score SEO</th>
+                                    <th>Stock</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dirty-books-table">
+                                <tr>
+                                    <td colspan="6" style="text-align: center; color: #999;">Cargando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ÚLTIMA SINCRONIZACIÓN -->
+                <div class="metric-card" style="margin-top: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div class="metric-label">Última sincronización</div>
+                            <div style="font-size: 16px; margin-top: 5px;" id="last-sync">Nunca</div>
+                        </div>
+                        <button class="btn btn-primary" onclick="showSection('sync')">Sincronizar Ahora</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SYNC SECTION -->
+            <div id="sync-section" class="section" style="display: none;">
+                <div class="header">
+                    <div>
+                        <h1>Sincronizar Catálogo</h1>
+                        <p style="color: #666; margin-top: 5px;">Limpia y sincroniza tus datos DILVE</p>
+                    </div>
+                </div>
+
+                <div id="sync-alerts-container"></div>
+
+                <div class="metric-card">
+                    <h3 style="margin-bottom: 20px; font-weight: 600;">📤 Subir CSV DILVE</h3>
+                    <div style="border: 2px dashed #0066cc; border-radius: 8px; padding: 40px; text-align: center; cursor: pointer;" id="drop-zone">
+                        <div style="font-size: 48px; margin-bottom: 10px;">📁</div>
+                        <p style="font-weight: 600; margin-bottom: 5px;">Arrastra tu CSV aquí</p>
+                        <p style="color: #666; font-size: 14px;">o haz clic para seleccionar</p>
+                        <input type="file" id="csv-input" accept=".csv" style="display: none;">
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <h3 style="margin-bottom: 20px; font-weight: 600;">🔄 Sincronización Automática DILVE</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Desde fecha:</label>
+                            <input type="date" id="sync-date" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Tipo de cambios:</label>
+                            <select id="sync-type" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                                <option value="A">Todos (A)</option>
+                                <option value="N">Nuevos (N)</option>
+                                <option value="M">Modificados (M)</option>
+                                <option value="D">Eliminados (D)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" style="margin-top: 15px; width: 100%;" onclick="syncDilve()">🚀 Sincronizar desde DILVE</button>
+                </div>
+
+                <div class="metric-card">
+                    <h3 style="margin-bottom: 20px; font-weight: 600;">⚙️ Opciones Avanzadas</h3>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-success" onclick="syncWooCommerce()">🛒 Sincronizar a WooCommerce</button>
+                        <button class="btn btn-danger" onclick="hideOutOfStock()">👁️ Ocultar sin stock</button>
+                    </div>
+                </div>
+
+                <div id="sync-progress" class="loading">
+                    <div class="spinner"></div>
+                    <p style="margin-top: 15px; color: #666;">Sincronizando... esto puede tomar unos minutos</p>
+                </div>
+            </div>
+
+            <!-- EXPORT SECTION -->
+            <div id="export-section" class="section" style="display: none;">
+                <div class="header">
+                    <div>
+                        <h1>Exportar Datos</h1>
+                        <p style="color: #666; margin-top: 5px;">Descarga tu catálogo en múltiples formatos</p>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <h3 style="margin-bottom: 20px; font-weight: 600;">📥 Descargar CSV</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div style="padding: 20px; background: #f3f4f6; border-radius: 8px;">
+                            <div style="font-size: 32px; margin-bottom: 10px;">🛒</div>
+                            <h4 style="font-weight: 600; margin-bottom: 5px;">WooCommerce</h4>
+                            <p style="color: #666; font-size: 14px; margin-bottom: 15px;">CSV optimizado para importar directamente a WooCommerce</p>
+                            <button class="btn btn-primary" style="width: 100%;" onclick="exportWooCommerce()">Descargar CSV</button>
+                        </div>
+
+                        <div style="padding: 20px; background: #f3f4f6; border-radius: 8px;">
+                            <div style="font-size: 32px; margin-bottom: 10px;">📋</div>
+                            <h4 style="font-weight: 600; margin-bottom: 5px;">WP All Import</h4>
+                            <p style="color: #666; font-size: 14px; margin-bottom: 15px;">CSV drag&drop para WordPress (Step 4)</p>
+                            <button class="btn btn-primary" style="width: 100%;" onclick="exportWPAllImport()">Descargar CSV</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <h3 style="margin-bottom: 15px; font-weight: 600;">📈 Estadísticas de Exportación</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                        <div style="text-align: center; padding: 15px; background: #f3f4f6; border-radius: 8px;">
+                            <div style="font-size: 24px; font-weight: bold;" id="export-total">0</div>
+                            <div style="color: #666; font-size: 12px; margin-top: 5px;">Libros totales</div>
+                        </div>
+                        <div style="text-align: center; padding: 15px; background: #f3f4f6; border-radius: 8px;">
+                            <div style="font-size: 24px; font-weight: bold;" id="export-clean">0</div>
+                            <div style="color: #666; font-size: 12px; margin-top: 5px;">Libros limpios</div>
+                        </div>
+                        <div style="text-align: center; padding: 15px; background: #f3f4f6; border-radius: 8px;">
+                            <div style="font-size: 24px; font-weight: bold;" id="export-ready">0%</div>
+                            <div style="color: #666; font-size: 12px; margin-top: 5px;">Listos para exportar</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <h3 style="margin-bottom: 15px; font-weight: 600;">ℹ️ Información de Formatos</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div style="padding: 15px; background: #e0f2fe; border-radius: 8px; border-left: 4px solid #0284c7;">
+                            <h4 style="font-weight: 600; margin-bottom: 10px;">🛒 WooCommerce</h4>
+                            <ul style="list-style: none; font-size: 13px; color: #333;">
+                                <li>✓ Importación directa</li>
+                                <li>✓ Todos los campos</li>
+                                <li>✓ Stock automático</li>
+                                <li>✓ Categorías</li>
+                            </ul>
+                        </div>
+                        <div style="padding: 15px; background: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                            <h4 style="font-weight: 600; margin-bottom: 10px;">📋 WP All Import</h4>
+                            <ul style="list-style: none; font-size: 13px; color: #333;">
+                                <li>✓ Drag & drop Step 4</li>
+                                <li>✓ Mapeo automático</li>
+                                <li>✓ Campos WordPress</li>
+                                <li>✓ Actualizaciones</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PRICING SECTION -->
+            <div id="pricing-section" class="section" style="display: none;">
+                <div class="header">
+                    <div>
+                        <h1>Planes de Precios</h1>
+                        <p style="color: #666; margin-top: 5px;">Elige el plan perfecto para tu librería</p>
+                    </div>
+                </div>
+
+                <div class="grid-3">
+                    <div class="metric-card" style="border: 2px solid #e5e7eb; position: relative;">
+                        <div style="font-size: 24px; font-weight: bold; margin-bottom: 10px;">Básico</div>
+                        <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;">€9<span style="font-size: 16px; color: #666;">/mes</span></div>
+                        <p style="color: #666; font-size: 14px; margin-bottom: 20px;">Perfecto para empezar</p>
+                        <ul style="list-style: none; margin-bottom: 20px;">
+                            <li style="padding: 8px 0; color: #666; font-size: 14px;">✓ CSV limpio mensual</li>
+                            <li style="padding: 8px 0; color: #666; font-size: 14px;">✓ Hasta 5.000 libros</li>
+                            <li style="padding: 8px 0; color: #666; font-size: 14px;">✓ Soporte por email</li>
+                            <li style="padding: 8px 0; color: #666; font-size: 14px;">✓ Limpieza UTF-8/HTML</li>
+                        </ul>
+                        <button class="btn btn-primary" style="width: 100%;">Prueba Gratis 7 días</button>
+                    </div>
+
+                    <div class="metric-card" style="border: 3px solid #0066cc; position: relative; transform: scale(1.05);">
+                        <div style="position: absolute; top: -15px; left: 20px; background: #0066cc; color: white; padding: 5px 15px; border-radius: 20px; font-size: 12px; font-weight: 600;">⭐ MÁS POPULAR</div>
+                        <div style="font-size: 24px; font-weight: bold; margin-bottom: 10px; margin-top: 10px;">PRO</div>
+                        <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;">€29<span style="font-size: 16px; color: #666;">/mes</span></div>
+                        <p style="color: #666; font-size: 14px; margin-bottom: 20px;">Para librerías en crecimiento</p>
+                        <ul style="list-style: none; margin-bottom: 20px;">
+                            <li style="padding: 8px 0; color: #666; font-size: 14px;">✓ Todo Básico +</li>
+                            <li style="padding: 8px 0; color: #666; font-size: 14px;">✓ Sync stock automático ⭐</li>
+                            <li style="padding: 8px 0; color: #666; font-size: 14px;">✓ Hasta 50.000 libros</li>
+                            <li style="padding: 8px 0; color: #666; font-size: 14px;">✓ Soporte prioritario</li>
+                            <li style="padding: 8px 0; color: #666; font-size: 14px;">✓ API REST acceso</li>
+                        </ul>
+                        <button class="btn btn-primary" style="width: 100%; background: #0066cc;">Prueba Gratis 7 días</button>
+                    </div>
+
+                    <div class="metric-card" style="border: 2px solid #e5e7eb; position: relative;">
+                        <div style="font-size: 24px; font-weight: bold; margin-bottom: 10px;">Premium</div>
+                        <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;">€59<span style="font-size: 16px; color: #666;">/mes</span></div>
+                        <p style="color: #666; font-size: 14px; margin-bottom: 20px;">Para grandes librerías</p>
+                        <ul style="list-style: none; margin-bottom: 20px;">
+                            <li style="padding: 8px 0; color: #666; font-size: 14px;">✓ Todo PRO +</li>
+                            <li style="padding: 8px 0; color: #666; font-size: 14px;">✓ Alertas en tiempo real</li>
+                            <li style="padding: 8px 0; color: #666; font-size: 14px;">✓ Sync cada hora</li>
+                            <li style="padding: 8px 0; color: #666; font-size: 14px;">✓ Hasta 500.000 libros</li>
+                            <li style="padding: 8px 0; color: #666; font-size: 14px;">✓ Soporte 24/7</li>
+                        </ul>
+                        <button class="btn btn-primary" style="width: 100%;">Prueba Gratis 7 días</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SETTINGS SECTION -->
+            <div id="settings-section" class="section" style="display: none;">
+                <div class="header">
+                    <div>
+                        <h1>Configuración</h1>
+                        <p style="color: #666; margin-top: 5px;">Gestiona tu cuenta y conexiones</p>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <h3 style="margin-bottom: 20px; font-weight: 600;">🔗 Conexiones</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div style="padding: 15px; background: #f3f4f6; border-radius: 8px;">
+                            <div style="font-weight: 600; margin-bottom: 10px;">DILVE</div>
+                            <p style="color: #666; font-size: 14px; margin-bottom: 10px;">Usuario: <strong>demo_user</strong></p>
+                            <button class="btn btn-primary" style="width: 100%; font-size: 12px;">Reconectar</button>
+                        </div>
+                        <div style="padding: 15px; background: #f3f4f6; border-radius: 8px;">
+                            <div style="font-weight: 600; margin-bottom: 10px;">WooCommerce</div>
+                            <p style="color: #666; font-size: 14px; margin-bottom: 10px;">Tienda: <strong>mitienda.com</strong></p>
+                            <button class="btn btn-primary" style="width: 100%; font-size: 12px;">Reconectar</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <h3 style="margin-bottom: 20px; font-weight: 600;">📊 Plan Actual</h3>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-size: 20px; font-weight: bold;">PRO</div>
+                            <p style="color: #666; font-size: 14px; margin-top: 5px;">€29/mes • Renovación: 15 Enero 2026</p>
+                        </div>
+                        <button class="btn btn-primary">Cambiar Plan</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mock library ID
+        const LIBRARY_ID = 1;
+        const API_BASE = 'http://localhost:8000/api';
+
+        // Show/hide sections
+        function showSection(section) {
+            document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+            document.getElementById(section + '-section').style.display = 'block';
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (section === 'dashboard') {
+                refreshDashboard();
+            } else if (section === 'export') {
+                refreshExportStats();
+            }
+        }
+
+        // Refresh dashboard
+        async function refreshDashboard() {
+            try {
+                const response = await fetch(`${API_BASE}/dashboard/${LIBRARY_ID}`);
+                const data = await response.json();
+
+                document.getElementById('total-books').textContent = data.total_books;
+                document.getElementById('active-books').textContent = data.active_books;
+                document.getElementById('seo-score').textContent = Math.round(data.seo_score);
+                document.getElementById('clean-count').textContent = data.clean_count;
+                document.getElementById('dirty-count').textContent = data.dirty_count;
+
+                const cleanPercentage = data.total_books > 0 ? (data.clean_count / data.total_books * 100) : 0;
+                const dirtyPercentage = 100 - cleanPercentage;
+
+                document.getElementById('clean-progress').style.width = cleanPercentage + '%';
+                document.getElementById('dirty-progress').style.width = dirtyPercentage + '%';
+                document.getElementById('clean-percentage').textContent = Math.round(cleanPercentage) + '% limpio';
+                document.getElementById('dirty-percentage').textContent = Math.round(dirtyPercentage) + '% sucio';
+                document.getElementById('seo-progress').style.width = data.seo_score + '%';
+
+                if (data.last_sync) {
+                    document.getElementById('last-sync').textContent = new Date(data.last_sync).toLocaleString('es-ES');
+                }
+
+                // Update charts
+                updateCharts(data);
+
+            } catch (error) {
+                console.error('Error refreshing dashboard:', error);
+                showAlert('Error al cargar el dashboard', 'error');
+            }
+        }
+
+        // Update charts
+        function updateCharts(data) {
+            // Stock chart
+            const stockCtx = document.getElementById('stockChart').getContext('2d');
+            new Chart(stockCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Con Stock', 'Sin Stock'],
+                    datasets: [{
+                        data: [data.active_books, data.out_of_stock],
+                        backgroundColor: ['#10b981', '#ef4444'],
+                        borderColor: ['#059669', '#dc2626'],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+
+            // Clean chart
+            const cleanCtx = document.getElementById('cleanChart').getContext('2d');
+            new Chart(cleanCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Limpios', 'Sucios'],
+                    datasets: [{
+                        data: [data.clean_count, data.dirty_count],
+                        backgroundColor: ['#0066cc', '#fbbf24'],
+                        borderColor: ['#0052a3', '#f59e0b'],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // File upload
+        const dropZone = document.getElementById('drop-zone');
+        const csvInput = document.getElementById('csv-input');
+
+        dropZone.addEventListener('click', () => csvInput.click());
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.background = '#e0e7ff';
+        });
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.style.background = 'transparent';
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.background = 'transparent';
+            handleFileUpload(e.dataTransfer.files[0]);
+        });
+
+        csvInput.addEventListener('change', (e) => {
+            handleFileUpload(e.target.files[0]);
+        });
+
+        async function handleFileUpload(file) {
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                showLoading('sync-progress', true);
+                const response = await fetch(`${API_BASE}/upload/csv/${LIBRARY_ID}`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                showLoading('sync-progress', false);
+
+                if (response.ok) {
+                    showAlert(`✅ ${data.cleaned} libros limpios, ${data.errors} errores`, 'success');
+                    refreshDashboard();
+                } else {
+                    showAlert('Error al procesar CSV', 'error');
+                }
+            } catch (error) {
+                showLoading('sync-progress', false);
+                console.error('Error uploading file:', error);
+                showAlert('Error al subir archivo', 'error');
+            }
+        }
+
+        // Sync functions
+        async function syncDilve() {
+            try {
+                showLoading('sync-progress', true);
+                const response = await fetch(`${API_BASE}/sync/dilve/${LIBRARY_ID}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        from_date: document.getElementById('sync-date').value || '2025-12-22'
+                    })
+                });
+
+                const data = await response.json();
+                showLoading('sync-progress', false);
+
+                if (response.ok) {
+                    showAlert('✅ Sincronización iniciada', 'success');
+                    setTimeout(refreshDashboard, 2000);
+                } else {
+                    showAlert('Error en sincronización', 'error');
+                }
+            } catch (error) {
+                showLoading('sync-progress', false);
+                console.error('Error syncing:', error);
+                showAlert('Error al sincronizar', 'error');
+            }
+        }
+
+        async function syncWooCommerce() {
+            try {
+                showLoading('sync-progress', true);
+                const response = await fetch(`${API_BASE}/sync/woocommerce/${LIBRARY_ID}`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+                showLoading('sync-progress', false);
+
+                if (response.ok) {
+                    showAlert('✅ Sincronización WooCommerce iniciada', 'success');
+                } else {
+                    showAlert(data.detail || 'Error en sincronización', 'error');
+                }
+            } catch (error) {
+                showLoading('sync-progress', false);
+                console.error('Error:', error);
+                showAlert('Error al sincronizar', 'error');
+            }
+        }
+
+        async function hideOutOfStock() {
+            if (confirm('¿Ocultar todos los productos sin stock?')) {
+                showAlert('⏳ Procesando...', 'success');
+            }
+        }
+
+        // Export functions
+        async function exportWooCommerce() {
+            window.location.href = `${API_BASE}/export/woocommerce/${LIBRARY_ID}`;
+        }
+
+        async function exportWPAllImport() {
+            window.location.href = `${API_BASE}/export/wp-all-import/${LIBRARY_ID}`;
+        }
+
+        function exportGeneric() {
+            showAlert('Descargando CSV genérico...', 'success');
+        }
+
+        async function refreshExportStats() {
+            try {
+                const response = await fetch(`${API_BASE}/dashboard/${LIBRARY_ID}`);
+                const data = await response.json();
+
+                document.getElementById('export-total').textContent = data.total_books;
+                document.getElementById('export-clean').textContent = data.clean_count;
+                const percentage = data.total_books > 0 ? Math.round((data.clean_count / data.total_books) * 100) : 0;
+                document.getElementById('export-ready').textContent = percentage + '%';
+            } catch (error) {
+                console.error('Error refreshing export stats:', error);
+            }
+        }
+
+        // Utilities
+        function showAlert(message, type) {
+            const container = document.getElementById('alerts-container') || document.getElementById('sync-alerts-container');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            container.appendChild(alert);
+
+            setTimeout(() => alert.remove(), 5000);
+        }
+
+        function showLoading(elementId, show) {
+            const element = document.getElementById(elementId);
+            if (show) {
+                element.classList.add('active');
+            } else {
+                element.classList.remove('active');
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('sync-date').valueAsDate = new Date();
+            refreshDashboard();
+        });
+    </script>
+</body>
+</html>
