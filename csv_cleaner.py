@@ -8,6 +8,7 @@ from typing import Dict, List
 from bs4 import BeautifulSoup
 from slugify import slugify
 import logging
+from thema_utils import map_thema_to_kusi
 
 logger = logging.getLogger(__name__)
 
@@ -230,7 +231,7 @@ class CSVCleaner:
                 'stock': stock,
                 'stock_status': stock_status,
                 'manage_stock': True,
-                'categories': 'Ficción' if 'ficción' in title.lower() else 'No Ficción',
+                'categories': map_thema_to_kusi(row.get('thema_code', row.get('materia_ibic', ''))),
                 'images': row.get('images', ''),
             }
 
@@ -264,65 +265,55 @@ class CSVCleaner:
     @staticmethod
     def to_woocommerce_csv(cleaned_rows: List[Dict]) -> str:
         """
-        Convierte filas limpias a formato CSV WooCommerce
+        Convierte filas limpias a formato CSV WooCommerce Estándar
+        Mapea campos KusiBook -> WooCommerce Product CSV Importer
         """
         if not cleaned_rows:
             return ""
 
-        # Headers WooCommerce
-        headers = [
-            'id', 'type', 'sku', 'name', 'published', 'is_featured',
-            'visibility', 'short_description', 'description', 'date_on_sale_from',
-            'date_on_sale_to', 'sale_price', 'regular_price', 'weight',
-            'length', 'width', 'height', 'categories', 'tags', 'shipping_class',
-            'images', 'download_limit', 'download_expiry', 'parent_id',
-            'grouped_products', 'upsell_ids', 'cross_sell_ids', 'external_url',
-            'button_text', 'position', 'attribute_pa_color', 'attribute_pa_size',
-            'meta:_custom_field', 'stock_status', 'manage_stock', 'stock_quantity'
-        ]
+        # Mapeo de headers KusiBook -> WooCommerce (campos oficiales)
+        # WC Header: KusiBook Field
+        wc_mapping = {
+            'sku': 'sku',
+            'name': 'post_title',
+            'published': None,  # '1' por defecto
+            'short_description': 'post_excerpt',
+            'description': 'post_content',
+            'regular_price': 'regular_price',
+            'sale_price': 'sale_price',
+            'stock_quantity': 'stock',
+            'stock_status': 'stock_status',
+            'manage_stock': None, # '1' por defecto
+            'categories': 'category_main',
+            'images': 'image_url',
+            'slug': 'post_name',
+            'meta:isbn13': 'isbn13',
+            'meta:author': 'author',
+            'meta:publisher': 'publisher',
+            'meta:seo_title': 'seo_title',
+            'meta:seo_description': 'seo_description'
+        }
 
+        headers = list(wc_mapping.keys())
         csv_lines = [','.join(headers)]
 
-        for i, row in enumerate(cleaned_rows, 1):
-            csv_row = [
-                str(i),  # id
-                'simple',  # type
-                row['sku'],
-                f'"{row["title"]}"',  # name
-                '1',  # published
-                '0',  # is_featured
-                'visible',  # visibility
-                f'"{row["description_clean"]}"',  # short_description
-                f'"{row["description_clean"]}"',  # description
-                '',  # date_on_sale_from
-                '',  # date_on_sale_to
-                '',  # sale_price
-                str(row['price']),  # regular_price
-                '',  # weight
-                '',  # length
-                '',  # width
-                '',  # height
-                row['categories'],  # categories
-                '',  # tags
-                '',  # shipping_class
-                row['images'],  # images
-                '',  # download_limit
-                '',  # download_expiry
-                '',  # parent_id
-                '',  # grouped_products
-                '',  # upsell_ids
-                '',  # cross_sell_ids
-                '',  # external_url
-                '',  # button_text
-                '',  # position
-                '',  # attribute_pa_color
-                '',  # attribute_pa_size
-                '',  # meta:_custom_field
-                row['stock_status'],  # stock_status
-                '1' if row['manage_stock'] else '0',  # manage_stock
-                str(row['stock'])  # stock_quantity
-            ]
-
-            csv_lines.append(','.join(csv_row))
+        for row in cleaned_rows:
+            csv_values = []
+            for header in headers:
+                kusi_field = wc_mapping[header]
+                val = ""
+                
+                if kusi_field is None:
+                    if header in ['published', 'manage_stock']:
+                        val = '1'
+                else:
+                    val = row.get(kusi_field, "")
+                    if val is None: val = ""
+                
+                # Escapado simple de comas para CSV
+                str_val = str(val).replace('"', '""')
+                csv_values.append(f'"{str_val}"')
+            
+            csv_lines.append(','.join(csv_values))
 
         return '\n'.join(csv_lines)

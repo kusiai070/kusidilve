@@ -428,6 +428,18 @@ with open('data/mock_dilve_dirty.csv') as f:
 "
 ```
 
+### Ejecutar Pruebas Unitarias
+
+El proyecto incluye una suite de tests para validar la lógica de limpieza y mapeo.
+
+```bash
+# Ejecutar todos los tests
+python -m unittest discover tests
+
+# Ejecutar un test específico
+python -m unittest tests/test_thema_utils.py
+```
+
 ## 🔐 Seguridad
 
 ### TODO en Producción

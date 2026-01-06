@@ -24,6 +24,8 @@ from models import (
 from csv_cleaner import CSVCleaner
 from dilve_client import DilveClient, DilveSync
 from woocommerce_sync import WooCommerceClient, WooCommerceSync
+from mapping_utils import normalize_header, suggest_mapping
+import json
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -439,18 +441,29 @@ async def export_woocommerce_csv(library_id: int, db: Session = Depends(get_db))
         books_data = [
             {
                 "isbn13": b.isbn13,
-                "sku": f"LIB-{b.isbn13[-6:]}",
-                "title": b.title,
+                "sku": f"LIB-{b.isbn13[-6:]}" if b.isbn13 else "LIB-000000",
+                "post_title": b.title,
                 "author": b.author,
-                "description": b.description,
-                "description_clean": b.description_clean,
-                "price": b.price,
+                "publisher": b.publisher,
+                "collection": b.collection,
+                "publication_year": b.publication_year,
+                "language": b.language,
+                "regular_price": b.price,
+                "sale_price": b.sale_price,
                 "stock": b.stock,
                 "stock_status": b.stock_status,
+                "post_content": b.description_clean,
+                "post_excerpt": b.post_excerpt,
+                "post_name": b.slug,
                 "seo_title": b.seo_title,
-                "slug": b.slug,
-                "score_seo": b.score_seo,
-                "categories": "Ficción"
+                "seo_description": b.seo_description,
+                "focus_keyword": b.focus_keyword,
+                "category_main": b.category_main,
+                "category_sub": b.category_sub,
+                "tags": b.tags,
+                "image_url": b.image_url,
+                "image_alt": b.image_alt,
+                "image_title": b.image_title
             }
             for b in books
         ]
@@ -516,44 +529,80 @@ async def export_wp_all_import_csv(library_id: int, db: Session = Depends(get_db
 # UPLOAD CSV
 # ============================================================================
 
+@app.post("/api/libraries/{library_id}/csv-mapping")
+async def update_csv_mapping(
+    library_id: int,
+    mapping_data: CSVMappingUpdate,
+    db: Session = Depends(get_db)
+):
+    """Guarda el mapeo de columnas para una librería"""
+    library = db.query(Library).filter(Library.id == library_id).first()
+    if not library:
+        raise HTTPException(status_code=404, detail="Librería no encontrada")
+    
+    library.csv_mapping = json.dumps(mapping_data.mapping)
+    db.commit()
+    return {"status": "success", "message": "Mapping actualizado"}
+
 @app.post("/api/upload/csv/{library_id}")
 async def upload_csv(
     library_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
-    """Sube y procesa CSV DILVE"""
+    """Sube y procesa CSV con soporte para Mapping Personalizado"""
     try:
         library = db.query(Library).filter(Library.id == library_id).first()
         if not library:
             raise HTTPException(status_code=404, detail="Librería no encontrada")
 
-        # Lee CSV
         content = await file.read()
         csv_text = content.decode('utf-8', errors='ignore')
 
-        # Parsea
         reader = csv.DictReader(io.StringIO(csv_text))
+        headers = reader.fieldnames
         rows = list(reader)
 
-        # Limpia
-        cleaned_rows, error_count = CSVCleaner.clean_csv(rows)
+        if not headers:
+            raise HTTPException(status_code=400, detail="CSV sin cabeceras")
+
+        # Recuperar o sugerir mapping
+        current_mapping = {}
+        if library.csv_mapping:
+            current_mapping = json.loads(library.csv_mapping)
+        else:
+            current_mapping = suggest_mapping(headers)
+            # No lo guardamos automáticamente, el usuario debe confirmarlo
+
+        # Re-mapear filas al estándar KusiDilve
+        remapped_rows = []
+        for row in rows:
+            remapped = {}
+            for kusi_field, user_header in current_mapping.items():
+                remapped[kusi_field] = row.get(user_header, "")
+            remapped_rows.append(remapped)
+
+        # Limpia con el pipeline existente
+        cleaned_rows, error_count = CSVCleaner.clean_csv(remapped_rows)
 
         # Guarda en BD
         for cleaned in cleaned_rows:
             book = Book(
                 library_id=library_id,
-                isbn13=cleaned["isbn13"],
-                title=cleaned["title"],
-                author=cleaned["author"],
-                description=cleaned["description"],
-                description_clean=cleaned["description_clean"],
-                price=cleaned["price"],
-                stock=cleaned["stock"],
-                stock_status=cleaned["stock_status"],
-                seo_title=cleaned["seo_title"],
-                slug=cleaned["slug"],
-                score_seo=cleaned["score_seo"],
+                isbn13=cleaned.get("isbn13"),
+                sku=cleaned.get("sku"),
+                title=cleaned.get("title", ""),
+                author=cleaned.get("author", ""),
+                description=cleaned.get("description", ""),
+                description_clean=cleaned.get("description_clean", ""),
+                price=cleaned.get("price", 0.0),
+                stock=cleaned.get("stock", 0),
+                stock_status=cleaned.get("stock_status", "out_of_stock"),
+                seo_title=cleaned.get("seo_title", ""),
+                slug=cleaned.get("slug", ""),
+                score_seo=cleaned.get("score_seo", 0),
+                category_main=cleaned.get("categories", "Sin Categoría"),
+                image_url=cleaned.get("images", ""),
                 is_dirty=False,
                 sync_date=datetime.utcnow()
             )
@@ -567,7 +616,8 @@ async def upload_csv(
             "status": "success",
             "processed": len(rows),
             "cleaned": len(cleaned_rows),
-            "errors": error_count
+            "errors": error_count,
+            "suggested_mapping": current_mapping if not library.csv_mapping else None
         }
 
     except Exception as e:
